@@ -1,17 +1,3 @@
-#
-# A "Hello World" template for iRulesLX RPC.
-#
-# Note: This example works in concert with the template in an
-# extension's default index.js.
-#
-# To use, replace every item in <> with an appropriate value.
-#
-# when <EVENT> {
-#    # Get a handle to the running extension instance to call into.
-#    set RPC_HANDLE [ILX::init <PLUGIN_NAME> <EXTENSION_NAME>]
-#    # Make the call and store the response in $rpc_response
-#    set rpc_response [ILX::call $RPC_HANDLE <REMOTE_FUNC_NAME> <ARG> <ARG> ...  ]
-# }
 when ACCESS_POLICY_AGENT_EVENT {
 
 set ldap_handle [ILX::init ldap extension]
@@ -22,20 +8,20 @@ set ldap_user_dn_suffix 'OU=Lab Users,DC=f5lab,DC=com'
      switch [ACCESS::policy agent_id] {
         "ldap_create" {
         	#do some LDIF generation magic
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: add\r\n"
-        	append ldap_ldif_data "cn: [table lookup -notouch -subtable $table_name cn]\r\n"
+        	append ldap_ldif_data "cn: [ACCESS::session data get session.custom.idam.cn]\r\n"
         	append ldap_ldif_data "sAMAccountName: $table_name\r\n"
-        	append ldap_ldif_data "userPrincipalName: [table lookup -notouch -subtable $table_name upn]\r\n"
+        	append ldap_ldif_data "userPrincipalName: [ACCESS::session data get session.custom.idam.upn]\r\n"
         	append ldap_ldif_data "\r\n"
         	#Required for set password
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: modify\r\n"
         	append ldap_ldif_data "replace: unicodePwd\r\n"
         	#Sets password to pass@word1
         	append ldap_ldif_data "unicodePwd:: IgBBAG4ARQB4AGEAbQBwAGwAZQBQAGEAcwBzAHcAbwByAGQAMQAhACIA\r\n"
         	append ldap_ldif_data "\r\n"
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: modify\r\n"
         	#Required for creating new user
         	append ldap_ldif_data "replace: userAccountControl\r\n"
@@ -45,25 +31,26 @@ set ldap_user_dn_suffix 'OU=Lab Users,DC=f5lab,DC=com'
 
         	set ldap_response [ILX::call $ldap_handle ldap_create $ldap_ldif_data ]}
         "ldap_modify" {
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: modify\r\n"
+        	append ldap_ldif_data "-"
 
         	set ldap_response [ILX::call $ldap_handle ldap_modify $ldap_ldif_data ]}
         "ldif_create" {
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: add\r\n"
         	append ldap_ldif_data "objectClass: user\r\n"   
-        	append ldap_ldif_data "cn: [table lookup -notouch -subtable $table_name cn]\r\n"
+        	append ldap_ldif_data "cn: [ACCESS::session data get session.custom.idam.cn]\r\n"
         	append ldap_ldif_data "sAMAccountName: $table_name\r\n"
-        	append ldap_ldif_data "userPrincipalName: [table lookup -notouch -subtable $table_name upn]\r\n"
+        	append ldap_ldif_data "userPrincipalName: [ACCESS::session data get session.custom.idam.upn]\r\n"
         	append ldap_ldif_data "\r\n"
         	#Required for set password
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: modify\r\n"
         	append ldap_ldif_data "replace: unicodePwd\r\n"
         	append ldap_ldif_data "unicodePwd:: IgBBAG4ARQB4AGEAbQBwAGwAZQBQAGEAcwBzAHcAbwByAGQAMQAhACIA\r\n"
         	append ldap_ldif_data "\r\n"
-        	append ldap_ldif_data "dn: [table lookup -notouch -subtable $table_name dn]\r\n"
+        	append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
         	append ldap_ldif_data "changetype: modify\r\n"
         	#Required for creating new user
         	append ldap_ldif_data "replace: userAccountControl\r\n"
