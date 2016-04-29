@@ -71,19 +71,12 @@ ilx.addMethod('ldap_modify', function(req,res) {
   var modification = '';
   if ((changetype == 'replace')&&(changeAttr == 'password')){
     var utf8_pass = "\"" + otpPass + "\"";
-    //console.log(utf8_pass);
+    console.log("PLAIN PASS: " + otpPass);
     var buff_pass = new Buffer(utf8_pass, 'utf16le');
     var enc_pass = buff_pass.toString();
-    //console.log(enc_pass);    
     
     mods = new ldap.Change({
-      operation: 'replace',
-      modification: {
-        //unicodePwd: '[(MODIFY_REPLACE, [' + enc_pass + '])]'
-        unicodePwd: enc_pass
-      }
-    });
-    //console.log(mods);
+      operation: 'replace', modification: { unicodePwd: enc_pass } });
 
   }
 
@@ -99,7 +92,7 @@ try {
     if (err) {
         console.log(err);
       }
-        console.log("Modified that joint!");
+        console.log("Modified: "+ cn);
   });
 } catch(er) {
             res.reply(er);
@@ -111,7 +104,7 @@ try {
     }
   });
 
-  res.reply("I got you fam.");
+  res.reply("OK");
 
 });
 ilx.addMethod('ldap_create', function(req,res) {
@@ -139,6 +132,3 @@ function encodePassword(password) {
 
 
 ilx.listen();
-
-
-

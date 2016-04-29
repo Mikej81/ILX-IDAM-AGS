@@ -35,7 +35,7 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
           #Collect some data for modifications, Test changes password
             expr srand([clock clicks])
             set tmpKey [CRYPTO::keygen -alg random -len 128 -passphrase [AES::key 128] -rounds 2]
-            set otp "<M@8t[string toupper [string range [b64encode $tmpKey] 0 16]]"
+            set otp "<M@8ty[string toupper [string range [b64encode $tmpKey] 0 16]]>"
             append ldap_ldif_data "{"
             append ldap_ldif_data "\"dn\": \"[ACCESS::session data get session.custom.idam.dn]\","
             append ldap_ldif_data "\"cn\": \"[ACCESS::session data get session.custom.idam.fullcn]\","
@@ -51,7 +51,7 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
           #test otp generate for random password
           expr srand([clock clicks])
           set tmpKey [CRYPTO::keygen -alg random -len 128 -passphrase [AES::key 128] -rounds 2]
-          set otp "<M@8t[string toupper [string range [b64encode $tmpKey] 0 16]]"
+          set otp "<M@8ty[string toupper [string range [b64encode $tmpKey] 0 16]]>"
           #set otp "<M@8t[string range [format "%08d" [expr int(rand() * 1e9)]] 1 16 ]"
           #this is just a test to collect the data from CERTPROC
             #change string to JSON
