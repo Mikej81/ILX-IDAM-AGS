@@ -32,16 +32,27 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
             set ldap_response [ILX::call $ldap_handle ldap_create $ldap_ldif_data ]
           }
         "ldap_modify" {
-          #Collect some data for modifications
-            append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
-            append ldap_ldif_data "changetype: modify\r\n"
-            append ldap_ldif_data "-"
+          #Collect some data for modifications, Test changes password
+            expr srand([clock clicks])
+            set tmpKey [CRYPTO::keygen -alg random -len 128 -passphrase [AES::key 128] -rounds 2]
+            set otp "<M@8t[string toupper [string range [b64encode $tmpKey] 0 16]]"
+            append ldap_ldif_data "{"
+            append ldap_ldif_data "\"dn\": \"[ACCESS::session data get session.custom.idam.dn]\","
+            append ldap_ldif_data "\"cn\": \"[ACCESS::session data get session.custom.idam.fullcn]\","
+            append ldap_ldif_data "\"changetype\": \"replace\","
+            append ldap_ldif_data "\"attribute\": \"password\","
+            append ldap_ldif_data "\"otp_pass\": \"$otp\""
+            append ldap_ldif_data "}"
 
             set ldap_response [ILX::call $ldap_handle ldap_modify $ldap_ldif_data ]
+            log local0. $ldap_response
           }
         "ldif_create" {
           #test otp generate for random password
-          set otp "<M@8t[string range [format "%08d" [expr int(rand() * 1e9)]] 1 16 ]"
+          expr srand([clock clicks])
+          set tmpKey [CRYPTO::keygen -alg random -len 128 -passphrase [AES::key 128] -rounds 2]
+          set otp "<M@8t[string toupper [string range [b64encode $tmpKey] 0 16]]"
+          #set otp "<M@8t[string range [format "%08d" [expr int(rand() * 1e9)]] 1 16 ]"
           #this is just a test to collect the data from CERTPROC
             #change string to JSON
             append ldap_ldif_data "{"
@@ -137,3 +148,5 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
         }
      }
 }
+
+

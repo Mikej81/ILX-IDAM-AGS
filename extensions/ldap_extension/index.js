@@ -23,6 +23,9 @@ ilx.addMethod('ldap_test', function(req,res) {
         var sam = accountJson["sAMAccountName"];
         var otpPass = accountJson["otp_pass"];
 
+        var encodedPassbuff = new Buffer('"' + otpPass + '"', 'utf16le');
+        var encodedPass = encodedPassbuff.toString('base64');
+
         try{
             
             client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
@@ -32,7 +35,6 @@ ilx.addMethod('ldap_test', function(req,res) {
             });
             
           client.compare(cn, 'sAMAccountName', sam, function(err, matched) {
-                //console.log("Comparing: " + dn + " sAMAccountName: " + sam);
                 if (err) {
                     console.log(err);
                 }
@@ -51,42 +53,72 @@ ilx.addMethod('ldap_test', function(req,res) {
 });
 
 ilx.addMethod('ldap_modify', function(req,res) {
-    var client = ldap.createClient({
-        url: ldap_bind_url
-        
-    });
-
-    client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
-      assert.ifError(err);
+  var client = ldap.createClient({
+    url: ldap_bind_url,
+    tlsOptions: tlsOptions
   });
-  client.modify('cn=foo, o=example', change, function(err) {
-      assert.ifError(err);
-  });
-  client.unbind(function(err) {
-      assert.ifError(err);
-  });
+  var accountJson = JSON.parse(req.params()[0]);
+  //DN and CN are flipped for creating new accounts in a specific OU
+  //USE CN for existing DN pulled from Certificate
+  var dn = accountJson["dn"];
+  var cn = accountJson["cn"];
+  var upn = accountJson["userPrincipalName"];
+  var sam = accountJson["sAMAccountName"];
+  var otpPass = accountJson["otp_pass"];
+  var changetype = accountJson["changetype"];
+  var changeAttr = accountJson["attribute"];
+  var changeAttrVal = '';
+  var modification = '';
+  if ((changetype == 'replace')&&(changeAttr == 'password')){
+    var utf8_pass = "\"" + otpPass + "\"";
+    //console.log(utf8_pass);
+    var buff_pass = new Buffer(utf8_pass, 'utf16le');
+    var enc_pass = buff_pass.toString();
+    //console.log(enc_pass);    
     
+    mods = new ldap.Change({
+      operation: 'replace',
+      modification: {
+        //unicodePwd: '[(MODIFY_REPLACE, [' + enc_pass + '])]'
+        unicodePwd: enc_pass
+      }
+    });
+    //console.log(mods);
+
+  }
+
+  client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
+    if (err) {
+        console.log(err);
+    }
+  });
+
+try {
+
+  client.modify(cn, mods, function(err) {
+    if (err) {
+        console.log(err);
+      }
+        console.log("Modified that joint!");
+  });
+} catch(er) {
+            res.reply(er);
+            console.log("error: " + er);
+}
+  client.unbind(function(err) {
+    if (err) {
+        console.log(err);
+    }
+  });
+
+  res.reply("I got you fam.");
+
 });
 ilx.addMethod('ldap_create', function(req,res) {
     var client = ldap.createClient({
         url: ldap_bind_url
         
     });
-
-        if (ldap_bind_url.startsWith('ldaps')) {
-      var opts = {
-        //how to read in CA PEM
-        ca: [fs.readFileSync('mycacert.pem')]
-    };
-
-    client.starttls(opts, function(err, res) {
-        assert.ifError(err);
-        // Client communication now TLS protected
-    });
-
-    } else {
-      //Create and Modify will fail over unenc-ldap
-    }
 
     client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
       assert.ifError(err);
@@ -100,5 +132,13 @@ ilx.addMethod('ldap_create', function(req,res) {
     
 });
 
+function encodePassword(password) {
+  //console.log(password);
+    return new Buffer('"' + password + '"', 'utf16le').toString();
+}
+
 
 ilx.listen();
+
+
+
