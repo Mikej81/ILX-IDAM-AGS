@@ -1,6 +1,6 @@
 when ACCESS_POLICY_AGENT_EVENT {
 
-#set ldap_handle [ILX::init ldap_extension]
+set ldap_handle [ILX::init ldap_extension]
 set ldap_ldif_data {}
 set ldap_ldif_changetype ""
 set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
@@ -29,37 +29,44 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
             #EOF
             append ldap_ldif_data "-"
 
-            set ldap_response [ILX::call $ldap_handle ldap_create $ldap_ldif_data ]}
+            set ldap_response [ILX::call $ldap_handle ldap_create $ldap_ldif_data ]
+          }
         "ldap_modify" {
           #Collect some data for modifications
             append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
             append ldap_ldif_data "changetype: modify\r\n"
             append ldap_ldif_data "-"
 
-            set ldap_response [ILX::call $ldap_handle ldap_modify $ldap_ldif_data ]}
+            set ldap_response [ILX::call $ldap_handle ldap_modify $ldap_ldif_data ]
+          }
         "ldif_create" {
+          #test otp generate for random password
+          set otp "<M@8t[string range [format "%08d" [expr int(rand() * 1e9)]] 1 16 ]"
           #this is just a test to collect the data from CERTPROC
-            append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
-            append ldap_ldif_data "changetype: add\r\n"
-            append ldap_ldif_data "objectClass: user\r\n"   
-            append ldap_ldif_data "cn: [ACCESS::session data get session.custom.idam.cn]\r\n"
-            append ldap_ldif_data "sAMAccountName: [ACCESS::session data get session.custom.idam.sam]\r\n"
-            append ldap_ldif_data "userPrincipalName: [ACCESS::session data get session.custom.idam.upn]\r\n"
-            append ldap_ldif_data "\r\n"
+            #change string to JSON
+            append ldap_ldif_data "{"
+            append ldap_ldif_data "\"dn\": \"[ACCESS::session data get session.custom.idam.dn]\","
+            append ldap_ldif_data "\"changetype\": \"add\","
+            append ldap_ldif_data "\"objectClass\": \"user\","   
+            append ldap_ldif_data "\"cn\": \"[ACCESS::session data get session.custom.idam.fullcn]\","
+            append ldap_ldif_data "\"sAMAccountName\": \"[ACCESS::session data get session.custom.idam.sam]\","
+            append ldap_ldif_data "\"userPrincipalName\": \"[ACCESS::session data get session.custom.idam.upn]\","
             #Required for set password
-            append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
-            append ldap_ldif_data "changetype: modify\r\n"
-            append ldap_ldif_data "replace: unicodePwd\r\n"
-            append ldap_ldif_data "unicodePwd:: IgBBAG4ARQB4AGEAbQBwAGwAZQBQAGEAcwBzAHcAbwByAGQAMQAhACIA\r\n"
-            append ldap_ldif_data "\r\n"
-            append ldap_ldif_data "dn: [ACCESS::session data get session.custom.idam.dn]\r\n"
-            append ldap_ldif_data "changetype: modify\r\n"
+            append ldap_ldif_data "\"dn\": \"[ACCESS::session data get session.custom.idam.dn]\","
+            append ldap_ldif_data "\"changetype\": \"modify\","
+            append ldap_ldif_data "\"replace\": \"unicodePwd\","
+            append ldap_ldif_data "\"password\": \"unicodePwd:: IgBBAG4ARQB4AGEAbQBwAGwAZQBQAGEAcwBzAHcAbwByAGQAMQAhACIA\","
+            append ldap_ldif_data "\"otp_pass\": \"$otp\","
+
+            append ldap_ldif_data "\"dn\": \"[ACCESS::session data get session.custom.idam.dn]\","
+            append ldap_ldif_data "\"changetype\": \"modify\","
             #Required for creating new user
-            append ldap_ldif_data "replace: userAccountControl\r\n"
-            append ldap_ldif_data "userAccountControl: 512\r\n"
+            append ldap_ldif_data "\"replace\": \"userAccountControl\","
+            append ldap_ldif_data "\"userAccountControl\": \"512\""
             #EOF
-            append ldap_ldif_data "-"
-            log local0. $ldap_ldif_data
+            append ldap_ldif_data "}"
+            #log local0. $ldap_ldif_data
+            set ldap_response [ILX::call $ldap_handle ldap_test $ldap_ldif_data]
         }
         "CERTPROC" {
             if { [ACCESS::session data get session.ssl.cert.x509extension] contains "othername:UPN<" } {
@@ -96,9 +103,11 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
         if { [ACCESS::session data get session.ssl.cert.subject] ne ""} {
         set data [ACCESS::session data get "session.ssl.cert.subject"]
         set commonName [findstr $data "CN=" 3 ","]
+        set fullcn "CN=[findstr $data "CN=" 3 "\r"]"
+        log local0. "FullCN: $fullcn"
         set cert_list [split $data ","]
         scan $commonName {%[^\.].%[^\.].%[^\.].%[^\.].%[^\.]} last first middle suffix edipinum
-        log local0. "CommonName for Scan: $commonName"
+        #log local0. "CommonName for Scan: $commonName"
         if { [info exists edipinum] } {
           log local0. "Suffix is $suffix"
           log local0. "EDIPI is $edipinum"
@@ -117,8 +126,9 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
             ACCESS::session data set session.custom.idam.sam [concat [string range $first 0 0]$last]
             ACCESS::session data set session.custom.idam.dn "CN=$commonName,$ldap_user_dn_suffix"
             ACCESS::session data set session.custom.idam.cn $commonName
+            ACCESS::session data set session.custom.idam.fullcn $fullcn
 
-            log local0. "SAM: [ACCESS::session data get session.custom.idam.sam]"
+            #log local0. "SAM: [ACCESS::session data get session.custom.idam.sam]"
             #log local0. "Creating SFDC User: $commonName, $last, $first, $tmpemail"
             set log_email [ACCESS::session data get session.custom.idam.email]
             set log_edipi [ACCESS::session data get session.custom.idam.edipinum]
@@ -127,4 +137,3 @@ set ldap_user_dn_suffix "OU=Lab Users,DC=f5lab,DC=com"
         }
      }
 }
-

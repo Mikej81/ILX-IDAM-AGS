@@ -6,30 +6,23 @@ var ldap_bind_dn = 'CN=F5 Query,OU=Service Accounts,DC=f5lab,DC=com';
 var ldap_root_DN = 'DC=f5lab,DC=com';
 var ldap_bind_pwd = 'pass@word1';
 
-
-/* Create a new rpc server for listening to TCL iRule calls. */
 var ilx = new f5.ILXServer();
 
 ilx.addMethod('ldap_test', function(req,res) {
-        var dn =  req.params()[0].split('\n')[0].replace("dn: ","");
-        var sam = '';
-        var upn = '';
         var client = ldap.createClient({
         url: ldap_bind_url,
         tlsOptions: tlsOptions
         });
-        var ldif_length = req.params()[0].split('\n').length;
-        for (var i = 0; i < ldif_length; i++) {
-            if (req.params()[0].split('\n')[i].indexOf('sAMAccountName') > -1 ) {
-            sam = req.params()[0].split('\n')[i].replace("sAMAccountName: ","").replace("\r","").replace("\n","");
-            }
-            if (req.params()[0].split('\n')[i].indexOf('userPrincipalName') > -1 ) {
-            upn = req.params()[0].split('\n')[i].replace("userPrincipalName: ","").replace("\r","").replace("\n","");
-            console.log("UPN: " + upn);
-            }
-        }
-        
-        //console.log(req.params()[0]);
+
+        var accountJson = JSON.parse(req.params()[0]);
+        //DN and CN are flipped for creating new accounts in a specific OU
+        //USE CN for existing DN pulled from Certificate
+        var dn = accountJson["dn"];
+        var cn = accountJson["cn"];
+        var upn = accountJson["userPrincipalName"];
+        var sam = accountJson["sAMAccountName"];
+        var otpPass = accountJson["otp_pass"];
+
         try{
             
             client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
@@ -37,32 +30,9 @@ ilx.addMethod('ldap_test', function(req,res) {
                   console.log(err);
               }
             });
-            //Search for values, having issues with case sensitivity
-            //var opts = {
-                //filter: '(userPrincipalName='+ upn +')',
-                //scope: 'sub',
-                //attributes: ['name', 'sAMAccountName']
-                //};
-                //console.log(opts);
-                //client.search(ldap_root_DN, opts, function(err, res) {
-                  //assert.ifError(err);
-                
-                 // res.on('searchEntry', function(entry) {
-                 //   console.log('entry: ' + JSON.stringify(entry.object));
-                 // });
-                 // res.on('searchReference', function(referral) {
-                 //   console.log('referral: ' + referral.uris.join());
-                 // });
-                 // res.on('error', function(err) {
-                 //   console.error('error: ' + err.message);
-                 // });
-                 // res.on('end', function(result) {
-                 //   console.log('status: ' + result.status);
-                 // });
-                //});
-
-          client.compare(dn, 'sAMAccountName', sam, function(err, matched) {
-                console.log("Comparing: " + dn + " sAMAccountName: " + sam);
+            
+          client.compare(cn, 'sAMAccountName', sam, function(err, matched) {
+                //console.log("Comparing: " + dn + " sAMAccountName: " + sam);
                 if (err) {
                     console.log(err);
                 }
@@ -85,20 +55,7 @@ ilx.addMethod('ldap_modify', function(req,res) {
         url: ldap_bind_url
         
     });
-//    if (ldap_bind_url.startsWith('ldaps')) {
-//      var opts = {
-//        //how to read in CA PEM
-//        ca: [fs.readFileSync('mycacert.pem')]
-//    };
-//
-//    client.starttls(opts, function(err, res) {
-//      assert.ifError(err);
-//        // Client communication now TLS protected
-//    });
 
-//    } else {
-      //Create and Modify will fail over unenc-ldap
-//    }
     client.bind(ldap_bind_dn, ldap_bind_pwd, function(err) {
       assert.ifError(err);
   });
@@ -143,14 +100,5 @@ ilx.addMethod('ldap_create', function(req,res) {
     
 });
 
-/*
- * ilx.addMethod('<REMOTE_FUNC_NAME>', function(req, res) {
- *   // Function parameters can be found in req.params().
- *   console.log('params: ' + req.params());
- *   // Whatever is placed in res.reply() will be the return value from ILX::call.
- *   res.reply('<RESPONSE>');
- * });
- */
 
-/* Start listening for ILX::call and ILX::notify events. */
 ilx.listen();
