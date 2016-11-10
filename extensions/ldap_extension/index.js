@@ -1,5 +1,25 @@
 var f5 = require('f5-nodejs');
 var ldap = require('ldapjs');
+
+var AuthenticationContext = require('adal-node').AuthenticationContext;
+//ADAL Options
+var clientId = 'yourClientIdHere';
+var clientSecret = 'yourAADIssuedClientSecretHere'
+var authorityHostUrl = 'https://login.windows.net';
+var tenant = 'myTenant';
+var authorityUrl = authorityHostUrl + '/' + tenant;
+var redirectUri = 'http://localhost:3000/getAToken';
+var resource = '00000002-0000-0000-c000-000000000000';
+var templateAuthzUrl = 'https://login.windows.net/' + 
+                        tenant + 
+                        '/oauth2/authorize?response_type=code&client_id=' +
+                        clientId + 
+                        '&redirect_uri=' + 
+                        redirectUri + 
+                        '&state=<state>&resource=' + 
+                        resource;
+
+//LDAPJS Options                        
 var tlsOptions = { 'rejectUnauthorized': false } //NOT recommended for production
 var ldap_bind_url = 'ldaps://192.168.2.25:636';  //LDAPS is required for Modify and Create
 var ldap_bind_dn = 'CN=F5 Query,OU=Service Accounts,DC=f5lab,DC=com';
